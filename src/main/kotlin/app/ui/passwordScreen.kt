@@ -4,7 +4,6 @@ package app.ui
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -199,20 +198,16 @@ private fun passwordScreen(
             placeHolderText = placeHolderText,
             isErrorSupplier = { false },
             trailingIcon = @Composable {
-                TooltipArea(
-                    tooltip = @Composable { Text("Show Password") }
-                ) {
-                    IconButton(
-                        modifier = Modifier.pointerHoverIcon(icon = PointerIcon(Cursor(Cursor.HAND_CURSOR))),
-                        onClick = {
-                            showPassword = !showPassword
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = ""
-                        )
+                IconButton(
+                    modifier = Modifier.pointerHoverIcon(icon = PointerIcon(Cursor(Cursor.HAND_CURSOR))),
+                    onClick = {
+                        showPassword = !showPassword
                     }
+                ) {
+                    Icon(
+                        imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = ""
+                    )
                 }
             },
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation()
