@@ -19,6 +19,7 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.materialIconsExtended)
     implementation("org.apache.pdfbox:pdfbox:2.0.30")
+    implementation("org.mongodb:mongodb-driver-kotlin-sync:5.3.0")
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.2")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.9.2")
     testImplementation("io.mockk:mockk:1.5.6")
