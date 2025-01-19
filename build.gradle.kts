@@ -44,7 +44,10 @@ compose.desktop {
                 packageName = "PDFTailor"
                 iconFile.set(project.file("icon.icns"))
             }
-            targetFormats(TargetFormat.Dmg)
+            windows{
+                packageName = "PDFTailor"
+            }
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi)
             packageName = "PDFTailor"
             packageVersion = "1.0.0"
         }
