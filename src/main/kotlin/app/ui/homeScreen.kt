@@ -34,14 +34,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.db.DBConnection
+import app.db.PdfRepo
 import kotlinx.coroutines.delay
 import java.awt.FileDialog
 import java.io.File
 import java.io.FilenameFilter
+import java.sql.Connection
 
 @Preview
 @Composable
 fun homeScreen() {
+
     var fileToBeSplit by remember { mutableStateOf("") }
     var filesToBeMerged by remember { mutableStateOf(emptySet<File>()) }
     var fileToBeLocked by remember { mutableStateOf("") }
@@ -102,6 +106,12 @@ fun homeScreen(
             Column { animatedCheckMark() }
         }
         Column(modifier = Modifier.padding(top = 120.dp, start = 270.dp)) {
+            Text(
+                text = PdfRepo.getAllPdfs().size.toString(),
+                color = Color(0xFF226600),
+                modifier = Modifier.padding(top = 80.dp, start = 20.dp),
+                fontWeight = FontWeight.Bold
+            )
             IconButton(
                 onClick = {
                     FileDialog(ComposeWindow(), "Import", FileDialog.LOAD).apply {

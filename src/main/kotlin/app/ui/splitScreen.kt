@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import app.EmptyException
 import app.appendToName
+import app.db.DBConnection
 import app.isNotEmpty
 import app.loadDocumentAsImages
 import app.open

@@ -49,6 +49,7 @@ import app.MergeAction.AddBlankPage
 import app.MergeAction.DeletePage
 import app.MergeRequest
 import app.blankPageImage
+import app.db.DBConnection
 import app.isNotEmpty
 import app.loadDocumentsAsImages
 import app.mergeAndSave

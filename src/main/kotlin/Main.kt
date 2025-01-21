@@ -3,19 +3,22 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.MaterialTheme
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
+import app.db.DBConnection
 import app.ui.DarkColorPalette
 import app.ui.LightColorPalette
 import app.ui.homeScreen
 
 
 fun main() = application {
+
     Window(
         title = "PDF Tailor",
         alwaysOnTop = false,
-        onCloseRequest = ::exitApplication,
+        onCloseRequest = close(),
         state = WindowState(size = DpSize(875.dp, 475.dp)),
         resizable = false
     ) {
@@ -24,4 +27,9 @@ fun main() = application {
             homeScreen()
         }
     }
+}
+
+fun ApplicationScope.close(): () -> Unit = {
+    DBConnection.close()
+    exitApplication()
 }

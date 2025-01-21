@@ -40,6 +40,7 @@ import app.EmptyException
 import app.MergeAction
 import app.MergeAndLockRequest
 import app.appendToName
+import app.db.DBConnection
 import app.isNotEmpty
 import app.lock
 import app.mergeAndSave
