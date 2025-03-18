@@ -1,0 +1,77 @@
+package app.ui.pioneer
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCut
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import java.awt.FileDialog
+
+@Composable
+fun landing() {
+    var html by remember { mutableStateOf("") }
+    if (html.isBlank()) {
+        landing {
+            html = it
+        }
+    } else {
+        LaunchedEffect(html) {
+            convert(html)
+        }
+    }
+}
+
+@Composable
+fun landing(
+    html: (String) -> Unit,
+
+    ) {
+    Row(
+        modifier = Modifier.background(MaterialTheme.colors.background).fillMaxSize(),
+    ) {
+
+        Column(modifier = Modifier.padding(top = 120.dp, start = 270.dp)) {
+            IconButton(
+                onClick = {
+                    FileDialog(ComposeWindow(), "Import", FileDialog.LOAD).apply {
+//                        filenameFilter = FilenameFilter { _, name -> name.lowercase().endsWith(".pdf") }
+                        isVisible = true
+                        file?.let { html("$directory$file") }
+                    }
+                }
+            ) {
+                Icon(
+                    modifier = Modifier.size(60.dp.plus(15.dp)).padding(start = 25.dp),
+                    imageVector = Icons.Rounded.ContentCut, contentDescription = "",
+                    tint = Color(0xFF226600)
+                )
+                Text(
+                    text = "Split",
+                    color = Color(0xFF226600),
+                    modifier = Modifier.padding(top = 80.dp, start = 20.dp),
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+
+        }
+    }
+}

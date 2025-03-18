@@ -9,6 +9,7 @@ import androidx.compose.ui.window.application
 import app.ui.DarkColorPalette
 import app.ui.LightColorPalette
 import app.ui.homeScreen
+import app.ui.pioneer.landing
 
 
 fun main() = application {
@@ -21,7 +22,7 @@ fun main() = application {
     ) {
 
         MaterialTheme(colors = if (isSystemInDarkTheme()) DarkColorPalette else LightColorPalette) {
-            homeScreen()
+            landing()
         }
     }
 }
