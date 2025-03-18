@@ -24,26 +24,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.awt.FileDialog
+import java.io.File
+import java.io.FilenameFilter
 
 @Composable
 fun landing() {
-    var html by remember { mutableStateOf("") }
-    if (html.isBlank()) {
+    var htmls by remember { mutableStateOf(emptySet<File>()) }
+
+    if (htmls.isEmpty()) {
         landing {
-            html = it
+            htmls = it
         }
     } else {
-        LaunchedEffect(html) {
-            convert(html)
+        LaunchedEffect(htmls) {
+            convert(htmls)
         }
     }
 }
 
 @Composable
 fun landing(
-    html: (String) -> Unit,
-
-    ) {
+    htmls: (Set<File>) -> Unit
+) {
     Row(
         modifier = Modifier.background(MaterialTheme.colors.background).fillMaxSize(),
     ) {
@@ -52,9 +54,10 @@ fun landing(
             IconButton(
                 onClick = {
                     FileDialog(ComposeWindow(), "Import", FileDialog.LOAD).apply {
-//                        filenameFilter = FilenameFilter { _, name -> name.lowercase().endsWith(".pdf") }
+                        filenameFilter = FilenameFilter { _, name -> name.lowercase().endsWith(".html") }
+                        this.isMultipleMode = true
                         isVisible = true
-                        file?.let { html("$directory$file") }
+                        files?.let { htmls(it.toSet()) }
                     }
                 }
             ) {

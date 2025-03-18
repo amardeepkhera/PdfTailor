@@ -1,7 +1,6 @@
 package app.ui.pioneer
 
 import androidx.compose.ui.res.useResource
-import app.open
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
@@ -17,25 +16,35 @@ import java.util.concurrent.atomic.AtomicInteger
 
 private const val fontSize = 16f
 
-//private val pdfFont = PDType1Font.TIMES_BOLD
 private const val MAX_CHARS_IN_LINE = 60
-private const val MAX_ROWS_IN_PAGE = 40
+private const val MAX_ROWS_IN_PAGE = 50
 private val separator = StringBuilder("").run {
     repeat((1..MAX_CHARS_IN_LINE.plus(10)).count()) { append("-") }
     toString()
 }
 
-fun convert(file: String) {
-    val f = File(file)
-    val document = Jsoup.parse(f)
-    document.body()
+fun convert(files: Set<File>) {
+    files
+        .asSequence()
+        .flatMap { toQuestions(it) }
+        .sortedBy { it.no.toInt() }
+        .toList()
+        .toPdf()
+        .run {
+            save(files.first().parent.plus("/Test.pdf"))
+            close()
+        }
+}
+
+private fun toQuestions(file: File): List<Question> {
+    val document = Jsoup.parse(file)
+    return document.body()
         .getElementsByClass("elevation-2")
         .asSequence()
         .filter {
             it.hasClass("sticky").not() && it.hasAttr("style").not()
-        }.map { it.toQuestion(f) }
+        }.map { it.toQuestion(file) }
         .toList()
-        .toPdf(file)
 }
 
 private fun Element.toQuestion(file: File): Question {
@@ -69,13 +78,12 @@ private fun Element.toQuestion(file: File): Question {
 
 private fun PDDocument.addPage() = PDPage().also { addPage(it) }
 
-private fun List<Question>.toPdf(file: String) = useResource("Roboto-VariableFont_wdth,wght.ttf") {
+private fun List<Question>.toPdf(): PDDocument = useResource("Roboto-VariableFont_wdth,wght.ttf") {
     val pdf = PDDocument()
     val font = PDType0Font.load(pdf, it)
     var page: PDPage
-    val rowCounter = AtomicInteger(0)
     var contentStream: PDPageContentStream? = null
-
+    val rowCounter = AtomicInteger(0)
     this.forEach {
         when {
             pdf.pages.count == 0 -> {
@@ -99,11 +107,18 @@ private fun List<Question>.toPdf(file: String) = useResource("Roboto-VariableFon
             }
         }
         it.options.forEach {
+            if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
+                page = pdf.addPage()
+                contentStream!!.destroy()
+                contentStream = newContentStream(pdf, page, font)
+                rowCounter.set(0)
+            }
             val text = it as app.ui.pioneer.Element.Text
             if (it.value.isBlank()) {
                 contentStream!!.newLine(rowCounter)
             } else {
                 text.print(contentStream!!, rowCounter)
+                contentStream!!.newLine(rowCounter)
             }
         }
         with(contentStream!!) {
@@ -113,17 +128,10 @@ private fun List<Question>.toPdf(file: String) = useResource("Roboto-VariableFon
             newLine(rowCounter)
             newLine(rowCounter)
         }
-
     }
     contentStream!!.destroy()
-
-    val f = File("/Users/amardeep/Documents/docs/Jasmeh/Pioneer/Tests/T1/w6/Math/test1.pdf")
-    f.delete()
-    pdf.save(f)
-    pdf.close()
-    f.open()
+    pdf
 }
-
 
 private fun newContentStream(pdf: PDDocument, page: PDPage, font: PDType0Font) =
     PDPageContentStream(pdf, page, PDPageContentStream.AppendMode.APPEND, true, true).apply {
@@ -198,7 +206,7 @@ private fun app.ui.pioneer.Element.Image.load(
     )
     contentStream.beginText()
     contentStream.newLineAtOffset(25f, (700 - rowCounter.get().times(10) - height - 100).toFloat())
-    rowCounter.addAndGet(51)
+    rowCounter.addAndGet((height + 100).div(10))
 }
 
 private fun PDPageContentStream.newLine(rowCounter: AtomicInteger) {
