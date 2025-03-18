@@ -1,6 +1,7 @@
 package app.ui.pioneer
 
 import androidx.compose.ui.res.useResource
+import app.open
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
@@ -67,6 +68,7 @@ private fun Element.toQuestion(file: File): Question {
 }
 
 private fun PDDocument.addPage() = PDPage().also { addPage(it) }
+
 private fun List<Question>.toPdf(file: String) = useResource("Roboto-VariableFont_wdth,wght.ttf") {
     val pdf = PDDocument()
     val font = PDType0Font.load(pdf, it)
@@ -74,7 +76,6 @@ private fun List<Question>.toPdf(file: String) = useResource("Roboto-VariableFon
     val rowCounter = AtomicInteger(0)
     var contentStream: PDPageContentStream? = null
 
-    useResource("", {})
     this.forEach {
         when {
             pdf.pages.count == 0 -> {
@@ -94,7 +95,7 @@ private fun List<Question>.toPdf(file: String) = useResource("Roboto-VariableFon
         it.elements.forEach {
             when (it) {
                 is app.ui.pioneer.Element.Text -> it.print(contentStream!!, rowCounter)
-                is app.ui.pioneer.Element.Image -> it.load(contentStream!!, pdf, font, rowCounter)
+                is app.ui.pioneer.Element.Image -> it.load(contentStream!!, pdf, rowCounter)
             }
         }
         it.options.forEach {
@@ -120,6 +121,7 @@ private fun List<Question>.toPdf(file: String) = useResource("Roboto-VariableFon
     f.delete()
     pdf.save(f)
     pdf.close()
+    f.open()
 }
 
 
@@ -128,7 +130,8 @@ private fun newContentStream(pdf: PDDocument, page: PDPage, font: PDType0Font) =
         beginText()
         setFont(font, fontSize)
         setLeading(14.5f)
-        newLineAtOffset(25f, 700f)
+        newLineAtOffset(25f, page.mediaBox.height - 50)
+
     }
 
 private fun PDPageContentStream.destroy() {
@@ -168,7 +171,6 @@ private fun wrap(text: String, list: MutableList<String>) {
 private fun app.ui.pioneer.Element.Image.load(
     contentStream: PDPageContentStream,
     pdf: PDDocument,
-    font: PDType0Font,
     rowCounter: AtomicInteger
 ) {
     contentStream.endText()
@@ -187,12 +189,16 @@ private fun app.ui.pioneer.Element.Image.load(
     }
 
     println("Area=h=${height}Xw=${width}=${height.times(width)}")
-    contentStream.drawImage(image, 50f, 350f, width.toFloat(), height.toFloat())
+    contentStream.drawImage(
+        image,
+        50f,
+        (700 - rowCounter.get().times(10) - height).toFloat(),
+        width.toFloat(),
+        height.toFloat()
+    )
     contentStream.beginText()
+    contentStream.newLineAtOffset(25f, (700 - rowCounter.get().times(10) - height - 100).toFloat())
     rowCounter.addAndGet(51)
-    contentStream.setFont(font, fontSize)
-    contentStream.setLeading(14.5f)
-    contentStream.newLineAtOffset(25f, 200f)
 }
 
 private fun PDPageContentStream.newLine(rowCounter: AtomicInteger) {
