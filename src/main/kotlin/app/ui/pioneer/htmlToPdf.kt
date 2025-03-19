@@ -211,13 +211,18 @@ private fun app.ui.pioneer.Element.Text.print(contentStream: PDPageContentStream
     }
 }
 
-private fun wrap(text: String, list: MutableList<String>) {
-    if (text.length < MAX_CHARS_IN_LINE) {
+fun wrap(text: String, list: MutableList<String>) {
+    if (text.length <= MAX_CHARS_IN_LINE) {
         list.add(text)
         return
     }
-    list.add(text.substring(0, MAX_CHARS_IN_LINE - 1))
-    wrap(text.substring(MAX_CHARS_IN_LINE - 1, text.length - 1), list)
+    var index = MAX_CHARS_IN_LINE
+    while (index > 0 && text[index].isWhitespace().not()) {
+        index--
+    }
+
+    list.add(text.substring(0, index))
+    wrap(text.substring(index + 1, text.length), list)
 }
 
 private fun app.ui.pioneer.Element.Image.load(
