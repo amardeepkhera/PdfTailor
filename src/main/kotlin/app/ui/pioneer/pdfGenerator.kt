@@ -18,7 +18,6 @@ private val separator = StringBuilder("").run {
     repeat((1..MAX_CHARS_IN_LINE.plus(10)).count()) { append("-") }
     toString()
 }
-private fun PDDocument.addPage() = PDPage().also { addPage(it) }
 
 fun List<Question>.toPdf(): PDDocument = useResource("Roboto-VariableFont_wdth,wght.ttf") {
     val pdf = PDDocument()
@@ -106,11 +105,13 @@ private fun PDPageContentStream.destroy() = runCatching {
     close()
 }.recover { close() }
 
-private fun app.ui.pioneer.Element.Text.paragraph(): List<String> {
+private fun PDDocument.addPage() = PDPage().also { addPage(it) }
+
+private fun Element.Text.paragraph(): List<String> {
     val wrappedText = mutableListOf<String>()
     when {
         value.isBlank() -> wrappedText.add(System.lineSeparator())
-        value.length < 50 -> {
+        value.length < MAX_CHARS_IN_LINE -> {
             wrappedText.add(value)
         }
 
@@ -121,7 +122,7 @@ private fun app.ui.pioneer.Element.Text.paragraph(): List<String> {
     return wrappedText.toList()
 }
 
-private fun app.ui.pioneer.Element.Text.print(contentStream: PDPageContentStream, rowCounter: AtomicInteger) {
+private fun Element.Text.print(contentStream: PDPageContentStream, rowCounter: AtomicInteger) {
     when {
         value.isBlank() -> contentStream.newLine(rowCounter)
         value.length < 50 -> {
@@ -154,7 +155,7 @@ fun wrap(text: String, list: MutableList<String>) {
     wrap(text.substring(index + 1, text.length), list)
 }
 
-private fun app.ui.pioneer.Element.Image.load(
+private fun Element.Image.load(
     contentStream: PDPageContentStream,
     pdf: PDDocument,
     rowCounter: AtomicInteger
