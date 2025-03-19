@@ -1,6 +1,7 @@
 package app.ui.pioneer
 
 import androidx.compose.ui.res.useResource
+import app.open
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
@@ -23,7 +24,7 @@ private val separator = StringBuilder("").run {
     toString()
 }
 
-fun convert(files: Set<File>) {
+fun convert(files: Set<File>, onComplete: () -> Unit) {
     files
         .asSequence()
         .flatMap { toQuestions(it) }
@@ -31,9 +32,12 @@ fun convert(files: Set<File>) {
         .toList()
         .toPdf()
         .run {
-            save(files.first().parent.plus("/Test.pdf"))
+            val file = files.first().parent.plus("/Test.pdf")
+            save(file)
             close()
+            File(file).open()
         }
+    onComplete()
 }
 
 private fun toQuestions(file: File): List<Question> {
@@ -85,48 +89,65 @@ private fun List<Question>.toPdf(): PDDocument = useResource("Roboto-VariableFon
     var contentStream: PDPageContentStream? = null
     val rowCounter = AtomicInteger(0)
     this.forEach {
-        when {
-            pdf.pages.count == 0 -> {
-                page = pdf.addPage()
-                contentStream = newContentStream(pdf, page, font)
-            }
+        runCatching {
+            when {
+                pdf.pages.count == 0 -> {
+                    page = pdf.addPage()
+                    contentStream = newContentStream(pdf, page, font)
+                }
 
-            rowCounter.get() >= MAX_ROWS_IN_PAGE || it.hasImage() -> {
-                page = pdf.addPage()
-                contentStream!!.destroy()
-                contentStream = newContentStream(pdf, page, font)
-                rowCounter.set(0)
+                rowCounter.get() >= MAX_ROWS_IN_PAGE || it.hasImage() -> {
+                    page = pdf.addPage()
+                    contentStream!!.destroy()
+                    contentStream = newContentStream(pdf, page, font)
+                    rowCounter.set(0)
+                }
             }
-        }
+            contentStream!!.showText(it.no + ") ")
+            it.elements.forEach {
+                when (it) {
+                    is app.ui.pioneer.Element.Text -> it.paragraph().forEach {
+                        if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
+                            page = pdf.addPage()
+                            contentStream!!.destroy()
+                            contentStream = newContentStream(pdf, page, font)
+                            rowCounter.set(0)
+                        }
+                        if (System.lineSeparator().equals(it)) {
+                            contentStream!!.newLine(rowCounter)
+                        } else {
+                            contentStream!!.showText(it)
+                            contentStream!!.newLine(rowCounter)
+                        }
+                    }
 
-        contentStream!!.showText(it.no + ") ")
-        it.elements.forEach {
-            when (it) {
-                is app.ui.pioneer.Element.Text -> it.print(contentStream!!, rowCounter)
-                is app.ui.pioneer.Element.Image -> it.load(contentStream!!, pdf, rowCounter)
+                    is app.ui.pioneer.Element.Image -> it.load(contentStream!!, pdf, rowCounter)
+                }
             }
-        }
-        it.options.forEach {
-            if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
-                page = pdf.addPage()
-                contentStream!!.destroy()
-                contentStream = newContentStream(pdf, page, font)
-                rowCounter.set(0)
+            it.options.forEach {
+                if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
+                    page = pdf.addPage()
+                    contentStream!!.destroy()
+                    contentStream = newContentStream(pdf, page, font)
+                    rowCounter.set(0)
+                }
+                val text = it as app.ui.pioneer.Element.Text
+                if (it.value.isBlank()) {
+                    contentStream!!.newLine(rowCounter)
+                } else {
+                    text.print(contentStream!!, rowCounter)
+                    contentStream!!.newLine(rowCounter)
+                }
             }
-            val text = it as app.ui.pioneer.Element.Text
-            if (it.value.isBlank()) {
-                contentStream!!.newLine(rowCounter)
-            } else {
-                text.print(contentStream!!, rowCounter)
-                contentStream!!.newLine(rowCounter)
+            with(contentStream!!) {
+                newLine(rowCounter)
+                newLine(rowCounter)
+                showText(separator)
+                newLine(rowCounter)
+                newLine(rowCounter)
             }
-        }
-        with(contentStream!!) {
-            newLine(rowCounter)
-            newLine(rowCounter)
-            showText(separator)
-            newLine(rowCounter)
-            newLine(rowCounter)
+        }.recover {
+            it.printStackTrace()
         }
     }
     contentStream!!.destroy()
@@ -142,11 +163,25 @@ private fun newContentStream(pdf: PDDocument, page: PDPage, font: PDType0Font) =
 
     }
 
-private fun PDPageContentStream.destroy() {
+private fun PDPageContentStream.destroy() = runCatching {
     endText()
     close()
-}
+}.recover { close() }
 
+private fun app.ui.pioneer.Element.Text.paragraph(): List<String> {
+    val wrappedText = mutableListOf<String>()
+    when {
+        value.isBlank() -> wrappedText.add(System.lineSeparator())
+        value.length < 50 -> {
+            wrappedText.add(value)
+        }
+
+        else -> {
+            wrap(value, wrappedText)
+        }
+    }
+    return wrappedText.toList()
+}
 
 private fun app.ui.pioneer.Element.Text.print(contentStream: PDPageContentStream, rowCounter: AtomicInteger) {
     when {
@@ -183,7 +218,6 @@ private fun app.ui.pioneer.Element.Image.load(
 ) {
     contentStream.endText()
     val image = PDImageXObject.createFromFile(ref, pdf)
-    println("Area=h=${image.height}Xw=${image.width}=${image.height.times(image.width)}")
     var height = image.height
     var width = image.width
     val aspectRatio = BigDecimal(height).divide(BigDecimal(width), MathContext(2))
@@ -195,8 +229,6 @@ private fun app.ui.pioneer.Element.Image.load(
         height = 300
         width = BigDecimal(height).divide(aspectRatio, MathContext(2)).toInt()
     }
-
-    println("Area=h=${height}Xw=${width}=${height.times(width)}")
     contentStream.drawImage(
         image,
         50f,

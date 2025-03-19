@@ -31,13 +31,19 @@ import java.io.FilenameFilter
 fun landing() {
     var htmls by remember { mutableStateOf(emptySet<File>()) }
 
-    if (htmls.isEmpty()) {
-        landing {
-            htmls = it
+    when {
+        htmls.isEmpty() -> {
+            landing {
+                htmls = it
+            }
         }
-    } else {
-        LaunchedEffect(htmls) {
-            convert(htmls)
+
+        else -> {
+            LaunchedEffect(htmls) {
+                convert(htmls) {
+                    htmls = emptySet()
+                }
+            }
         }
     }
 }
