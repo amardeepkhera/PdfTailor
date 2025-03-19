@@ -12,6 +12,9 @@ import org.jsoup.nodes.Element
 import java.io.File
 import java.math.BigDecimal
 import java.math.MathContext
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 
@@ -32,7 +35,13 @@ fun convert(files: Set<File>, onComplete: () -> Unit) {
         .toList()
         .toPdf()
         .run {
-            val file = files.first().parent.plus("/Test.pdf")
+            val file =
+                files.first().parent.plus(
+                    "/Test-${
+                        LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES)
+                            .format(DateTimeFormatter.ofPattern("YYYY-mm-dd_hh:mm"))
+                    }.pdf"
+                )
             save(file)
             close()
             File(file).open()
