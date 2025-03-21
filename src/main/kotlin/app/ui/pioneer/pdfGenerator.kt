@@ -1,13 +1,17 @@
 package app.ui.pioneer
 
 import androidx.compose.ui.res.useResource
+import app.withoutExtension
 import org.apache.pdfbox.pdmodel.PDDocument
 import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.pdmodel.PDPageContentStream
 import org.apache.pdfbox.pdmodel.font.PDType0Font
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject
+import java.io.File
+import java.io.FileOutputStream
 import java.math.BigDecimal
 import java.math.MathContext
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 private const val fontSize = 16f
@@ -19,72 +23,68 @@ private val separator = StringBuilder("").run {
     toString()
 }
 
-fun List<Question>.toPdf(): PDDocument = useResource("Roboto-VariableFont_wdth,wght.ttf") {
+suspend fun List<Question>.toPdf(): PDDocument = useResource("Roboto-VariableFont_wdth,wght.ttf") {
     val pdf = PDDocument()
     val font = PDType0Font.load(pdf, it)
     var page: PDPage
     var contentStream: PDPageContentStream? = null
     val rowCounter = AtomicInteger(0)
-    this.forEach {
-        runCatching {
-            when {
-                pdf.pages.count == 0 -> {
-                    page = pdf.addPage()
-                    contentStream = newContentStream(pdf, page, font)
-                }
-
-                rowCounter.get() >= MAX_ROWS_IN_PAGE || it.hasImage() -> {
-                    page = pdf.addPage()
-                    contentStream!!.destroy()
-                    contentStream = newContentStream(pdf, page, font)
-                    rowCounter.set(0)
-                }
+    forEach { question ->
+        when {
+            pdf.pages.count == 0 -> {
+                page = pdf.addPage()
+                contentStream = newContentStream(pdf, page, font)
             }
-            contentStream!!.showText(it.no + ") ")
-            it.elements.forEach {
-                when (it) {
-                    is Element.Text -> it.paragraph().forEach {
-                        if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
-                            page = pdf.addPage()
-                            contentStream!!.destroy()
-                            contentStream = newContentStream(pdf, page, font)
-                            rowCounter.set(0)
-                        }
-                        if (System.lineSeparator().equals(it)) {
-                            contentStream!!.newLine(rowCounter)
-                        } else {
-                            contentStream!!.showText(it)
-                            contentStream!!.newLine(rowCounter)
-                        }
+
+            rowCounter.get() >= MAX_ROWS_IN_PAGE || question.hasImage() -> {
+                page = pdf.addPage()
+                contentStream!!.destroy()
+                contentStream = newContentStream(pdf, page, font)
+                rowCounter.set(0)
+            }
+        }
+        contentStream!!.showText(question.no + ") ")
+        question.elements.forEach {
+            when (it) {
+                is Element.Text -> it.paragraph().forEach {
+                    if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
+                        page = pdf.addPage()
+                        contentStream!!.destroy()
+                        contentStream = newContentStream(pdf, page, font)
+                        rowCounter.set(0)
                     }
+                    if (System.lineSeparator().equals(it)) {
+                        contentStream!!.newLine(rowCounter)
+                    } else {
+                        contentStream!!.write(it, rowCounter)
+                    }
+                }
 
-                    is Element.Image -> it.load(contentStream!!, pdf, rowCounter)
-                }
+                is Element.Image -> it.load(question.sourceFile, contentStream!!, pdf, rowCounter)
+
             }
-            it.options.forEach {
-                if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
-                    page = pdf.addPage()
-                    contentStream!!.destroy()
-                    contentStream = newContentStream(pdf, page, font)
-                    rowCounter.set(0)
-                }
-                val text = it as Element.Text
-                if (it.value.isBlank()) {
-                    contentStream!!.newLine(rowCounter)
-                } else {
-                    text.print(contentStream!!, rowCounter)
-                    contentStream!!.newLine(rowCounter)
-                }
+        }
+        question.options.forEach {
+            if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
+                page = pdf.addPage()
+                contentStream!!.destroy()
+                contentStream = newContentStream(pdf, page, font)
+                rowCounter.set(0)
             }
-            with(contentStream!!) {
-                newLine(rowCounter)
-                newLine(rowCounter)
-                showText(separator)
-                newLine(rowCounter)
-                newLine(rowCounter)
+            val text = it as Element.Text
+            if (it.value.isBlank()) {
+                contentStream!!.newLine(rowCounter)
+            } else {
+                text.print(contentStream!!, rowCounter)
+                contentStream!!.newLine(rowCounter)
             }
-        }.recover {
-            it.printStackTrace()
+        }
+        with(contentStream!!) {
+            newLine(rowCounter)
+            newLine(rowCounter)
+            showText(separator)
+            newLine(rowCounter)
+            newLine(rowCounter)
         }
     }
     contentStream!!.destroy()
@@ -141,7 +141,7 @@ private fun Element.Text.print(contentStream: PDPageContentStream, rowCounter: A
     }
 }
 
-fun wrap(text: String, list: MutableList<String>) {
+private fun wrap(text: String, list: MutableList<String>) {
     if (text.length <= MAX_CHARS_IN_LINE) {
         list.add(text)
         return
@@ -155,13 +155,30 @@ fun wrap(text: String, list: MutableList<String>) {
     wrap(text.substring(index + 1, text.length), list)
 }
 
-private fun Element.Image.load(
+private suspend fun Element.Image.load(
+    sourceFile: File,
     contentStream: PDPageContentStream,
     pdf: PDDocument,
     rowCounter: AtomicInteger
 ) {
+    val imageFile = if (ref.startsWith("http")) {
+        sourceFile
+            .withoutExtension()
+            .plus("_files/")
+            .plus(UUID.randomUUID().toString())
+            .plus(".png").also {
+                downloadImage(ref).run {
+                    FileOutputStream(it).use {
+                        it.write(this)
+                    }
+                }
+            }
+    } else {
+        sourceFile.parent.plus(ref)
+    }
+
     contentStream.endText()
-    val image = PDImageXObject.createFromFile(ref, pdf)
+    val image = PDImageXObject.createFromFile(imageFile, pdf)
     var height = image.height
     var width = image.width
     val aspectRatio = BigDecimal(height).divide(BigDecimal(width), MathContext(2))
@@ -183,6 +200,16 @@ private fun Element.Image.load(
     contentStream.beginText()
     contentStream.newLineAtOffset(25f, (700 - rowCounter.get().times(10) - height - 100).toFloat())
     rowCounter.addAndGet((height + 100).div(10))
+}
+
+private fun PDPageContentStream.write(text: String, rowCounter: AtomicInteger) = runCatching {
+    showText(text)
+    newLine(rowCounter)
+}.recover {
+    extractMissingGlyph(it)?.let { getMissingGlyphReplacement(it) }?.let {
+        showText("$it ${text.substringAfter(" ")}")
+        newLine(rowCounter)
+    }
 }
 
 private fun PDPageContentStream.newLine(rowCounter: AtomicInteger) {

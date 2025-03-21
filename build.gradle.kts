@@ -5,6 +5,7 @@ plugins {
     kotlin("jvm")
     id("org.jetbrains.compose")
 }
+val ktorVersion = "3.0.3"
 
 group = "me.amardeep"
 version = "1.0"
@@ -20,6 +21,8 @@ dependencies {
     implementation(compose.materialIconsExtended)
     implementation("org.apache.pdfbox:pdfbox:2.0.30")
     implementation("org.jsoup:jsoup:1.15.3")
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.2")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:5.9.2")
     testImplementation("io.mockk:mockk:1.5.6")

@@ -6,6 +6,8 @@ import java.io.File
 
 fun File.nameWithoutExtension() = name.substringBefore(".$extension")
 
+fun File.withoutExtension() = absolutePath.removeSuffix(".$extension")
+
 fun File.appendToName(string: String) = "${nameWithoutExtension()}_$string.$extension"
 
 fun File.open() = runCatching {

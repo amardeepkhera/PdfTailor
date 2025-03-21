@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 
-fun convert(files: Set<File>, onComplete: () -> Unit) {
+suspend fun convert(files: Set<File>, onComplete: () -> Unit) {
     files
         .asSequence()
         .flatMap { toQuestions(it) }
