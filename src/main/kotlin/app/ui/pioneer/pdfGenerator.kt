@@ -9,6 +9,7 @@ import org.apache.pdfbox.pdmodel.font.PDType0Font
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.math.BigDecimal
 import java.math.MathContext
 import java.util.UUID
@@ -23,63 +24,70 @@ private val separator = StringBuilder("").run {
     toString()
 }
 
-suspend fun List<Question>.toPdf(): PDDocument = useResource("Roboto-VariableFont_wdth,wght.ttf") {
-    val pdf = PDDocument()
-    val font = PDType0Font.load(pdf, it)
-    var page: PDPage
-    var contentStream: PDPageContentStream? = null
-    val rowCounter = AtomicInteger(0)
-    forEach { question ->
-        when {
-            pdf.pages.count == 0 -> {
-                page = pdf.addPage()
-                contentStream = newContentStream(pdf, page, font)
-            }
-
-            rowCounter.get() >= MAX_ROWS_IN_PAGE || question.hasImage() -> {
-                page = pdf.addPage()
-                contentStream!!.destroy()
-                contentStream = newContentStream(pdf, page, font)
-                rowCounter.set(0)
-            }
+private data class DocumentState(
+    val pdf: PDDocument = PDDocument(),
+    var page: PDPage = pdf.addPage(),
+    private val fontInputStream: InputStream,
+    val font: PDType0Font = PDType0Font.load(pdf, fontInputStream),
+    var contentStream: PDPageContentStream = newContentStream(pdf, page, font),
+    val rowCounter: AtomicInteger = AtomicInteger(0),
+) {
+    fun addPageIfPageSizeIsExceeded() {
+        if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
+            addPage()
         }
-        contentStream!!.showText(question.no + ") ")
+    }
+
+    fun addPageIfPageSizeIsExceededOrQuestionHasAnImage(question: Question) {
+        if (rowCounter.get() > MAX_ROWS_IN_PAGE || question.hasImage()) {
+            addPage()
+        }
+    }
+
+    private fun addPage() {
+        page = pdf.addPage()
+        contentStream.destroy()
+        rowCounter.set(0)
+        contentStream = newContentStream(pdf, page, font)
+    }
+}
+
+private suspend fun <R> withNewDocument(d: suspend DocumentState.() -> R) =
+    useResource("Roboto-VariableFont_wdth,wght.ttf") {
+        val documentState = DocumentState(fontInputStream = it)
+        d(documentState)
+    }
+
+suspend fun List<Question>.toPdf(): PDDocument = withNewDocument {
+    forEach { question ->
+        addPageIfPageSizeIsExceededOrQuestionHasAnImage(question)
+        contentStream.showText(question.no + ") ")
         question.elements.forEach {
             when (it) {
                 is Element.Text -> it.paragraph().forEach {
-                    if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
-                        page = pdf.addPage()
-                        contentStream!!.destroy()
-                        contentStream = newContentStream(pdf, page, font)
-                        rowCounter.set(0)
-                    }
+                    addPageIfPageSizeIsExceeded()
                     if (System.lineSeparator().equals(it)) {
-                        contentStream!!.newLine(rowCounter)
+                        contentStream.newLine(rowCounter)
                     } else {
-                        contentStream!!.write(it, rowCounter)
+                        contentStream.write(it, rowCounter)
                     }
                 }
 
-                is Element.Image -> it.load(question.sourceFile, contentStream!!, pdf, rowCounter)
+                is Element.Image -> it.load(question.sourceFile, contentStream, pdf, rowCounter)
 
             }
         }
         question.options.forEach {
-            if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
-                page = pdf.addPage()
-                contentStream!!.destroy()
-                contentStream = newContentStream(pdf, page, font)
-                rowCounter.set(0)
-            }
+            addPageIfPageSizeIsExceeded()
             val text = it as Element.Text
             if (it.value.isBlank()) {
-                contentStream!!.newLine(rowCounter)
+                contentStream.newLine(rowCounter)
             } else {
-                text.print(contentStream!!, rowCounter)
-                contentStream!!.newLine(rowCounter)
+                text.print(contentStream, rowCounter)
+                contentStream.newLine(rowCounter)
             }
         }
-        with(contentStream!!) {
+        with(contentStream) {
             newLine(rowCounter)
             newLine(rowCounter)
             showText(separator)
@@ -87,9 +95,83 @@ suspend fun List<Question>.toPdf(): PDDocument = useResource("Roboto-VariableFon
             newLine(rowCounter)
         }
     }
-    contentStream!!.destroy()
+    contentStream.destroy()
     pdf
 }
+
+
+//suspend fun List<Question>.toPdf(): PDDocument = useResource("Roboto-VariableFont_wdth,wght.ttf") {
+//    val pdf = PDDocument()
+//    val font = PDType0Font.load(pdf, it)
+//    var page: PDPage? = null
+//    var contentStream: PDPageContentStream? = null
+//    val rowCounter = AtomicInteger(0)
+//
+//    forEach { question ->
+//        when {
+//            pdf.pages.count == 0 -> {
+//                page = pdf.addPage()
+//                contentStream = newContentStream(pdf, page!!, font)
+//            }
+//
+//            rowCounter.get() >= MAX_ROWS_IN_PAGE || question.hasImage() -> {
+//                page = pdf.addPage()
+//                contentStream!!.destroy()
+//                contentStream = newContentStream(pdf, page!!, font)
+//                rowCounter.set(0)
+//            }
+//        }
+//        contentStream!!.showText(question.no + ") ")
+//        question.elements.forEach {
+//            when (it) {
+//                is Element.Text -> it.paragraph().forEach {
+//                    newPageIfRequired(
+//                        pdf,
+//                        page!!,
+//                        contentStream!!,
+//                        font,
+//                        rowCounter
+//                    ) { pdPage: PDPage, pdPageContentStream: PDPageContentStream ->
+//                        page = pdPage
+//                        contentStream = pdPageContentStream
+//                    }
+//                    if (System.lineSeparator().equals(it)) {
+//                        contentStream!!.newLine(rowCounter)
+//                    } else {
+//                        contentStream!!.write(it, rowCounter)
+//                    }
+//                }
+//
+//                is Element.Image -> it.load(question.sourceFile, contentStream!!, pdf, rowCounter)
+//
+//            }
+//        }
+//        question.options.forEach {
+//            if (rowCounter.get() > MAX_ROWS_IN_PAGE) {
+//                page = pdf.addPage()
+//                contentStream!!.destroy()
+//                contentStream = newContentStream(pdf, page!!, font)
+//                rowCounter.set(0)
+//            }
+//            val text = it as Element.Text
+//            if (it.value.isBlank()) {
+//                contentStream!!.newLine(rowCounter)
+//            } else {
+//                text.print(contentStream!!, rowCounter)
+//                contentStream!!.newLine(rowCounter)
+//            }
+//        }
+//        with(contentStream!!) {
+//            newLine(rowCounter)
+//            newLine(rowCounter)
+//            showText(separator)
+//            newLine(rowCounter)
+//            newLine(rowCounter)
+//        }
+//    }
+//    contentStream!!.destroy()
+//    pdf
+//}
 
 private fun newContentStream(pdf: PDDocument, page: PDPage, font: PDType0Font) =
     PDPageContentStream(pdf, page, PDPageContentStream.AppendMode.APPEND, true, true).apply {
@@ -97,7 +179,6 @@ private fun newContentStream(pdf: PDDocument, page: PDPage, font: PDType0Font) =
         setFont(font, fontSize)
         setLeading(14.5f)
         newLineAtOffset(25f, page.mediaBox.height - 50)
-
     }
 
 private fun PDPageContentStream.destroy() = runCatching {

@@ -11,6 +11,7 @@ suspend fun convert(files: Set<File>, onComplete: () -> Unit) {
     files
         .asSequence()
         .flatMap { toQuestions(it) }
+        .distinctBy { it.no }
         .sortedBy { it.no.toInt() }
         .toList()
         .toPdf()
