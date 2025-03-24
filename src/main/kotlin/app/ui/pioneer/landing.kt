@@ -11,7 +11,9 @@ import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AddCard
 import androidx.compose.material.icons.rounded.ContentCut
+import androidx.compose.material.icons.rounded.Plumbing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,7 +58,7 @@ fun landing(
         modifier = Modifier.background(MaterialTheme.colors.background).fillMaxSize(),
     ) {
 
-        Column(modifier = Modifier.padding(top = 120.dp, start = 270.dp)) {
+        Column(modifier = Modifier.padding(top = 120.dp, start = 320.dp)) {
             IconButton(
                 onClick = {
                     FileDialog(ComposeWindow(), "Import", FileDialog.LOAD).apply {
@@ -69,11 +71,11 @@ fun landing(
             ) {
                 Icon(
                     modifier = Modifier.size(60.dp.plus(15.dp)).padding(start = 25.dp),
-                    imageVector = Icons.Rounded.ContentCut, contentDescription = "",
+                    imageVector = Icons.Rounded.AddCard, contentDescription = "",
                     tint = Color(0xFF226600)
                 )
                 Text(
-                    text = "Split",
+                    text = "Create Pioneer Test",
                     color = Color(0xFF226600),
                     modifier = Modifier.padding(top = 80.dp, start = 20.dp),
                     fontWeight = FontWeight.Bold,
